@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watering Suggestion</title>
+    <link href="https://fonts.googleapis.com/css2?family=Indie+Flower&display=swap" rel="stylesheet">
+    <!-- Link Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mt-5 mb-4">Watering Suggestion</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title">Weather Information</h2>
+                        <div id="cityoutput"></div>
+                        <div id="description"></div>
+                        <div id="temp"></div>
+                        <div id="wind"></div>
+                        <div id="latitude"></div>
+                        <div id="longitude"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="card-title">Suggestion</h2>
+                        <div id="watering"></div>
+                        <button id="get-suggestion-button" class="btn btn-primary mt-3">Get Suggestion</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var city = document.querySelector('#cityoutput');
+        var description = document.querySelector('#description');
+        var temp = document.querySelector('#temp');
+        var wind = document.querySelector('#wind');
+        var latitudeElement = document.querySelector('#latitude');
+        var longitudeElement = document.querySelector('#longitude');
+        var wateringAdvice = document.querySelector('#watering');
+        var apik = "3045dd712ffe6e702e3245525ac7fa38";
+        var rainfall = 0.00;
+
+        function convertion(val) {
+          return (val - 273).toFixed(2);
+        }
+
+        function getLocationAndWeather() {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+          } else {
+            alert("Geolocation is not supported by this browser.");
+          }
+        }
+
+        function showPosition(position) {
+          latitudeElement.innerHTML = `Latitude: ${position.coords.latitude}`;
+          longitudeElement.innerHTML = `Longitude: ${position.coords.longitude}`;
+          fetchWeather(position.coords.latitude, position.coords.longitude);
+        }
+
+        function showError(error) {
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              alert("User denied the request for Geolocation.");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              alert("Location information is unavailable.");
+              break;
+            case error.TIMEOUT:
+              alert("The request to get user location timed out.");
+              break;
+            case error.UNKNOWN_ERROR:
+              alert("An unknown error occurred.");
+              break;
+          }
+        }
+
+        function fetchWeather(latitude, longitude) {
+          fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apik}`)
+            .then(res => res.json())
+            .then(data => {
+              var nameval = data['name'];
+              var descrip = data['weather'][0]['description']; // Fixed index access
+              var tempature = data['main']['temp'];
+              var wndspd = data['wind']['speed'];
+              city.innerHTML = `Weather of <span>${nameval}</span>`;
+              temp.innerHTML = `Temperature: <span>${convertion(tempature)} C</span>`;
+              description.innerHTML = `Sky Conditions: <span>${descrip}</span>`;
+              wind.innerHTML = `Wind Speed: <span>${wndspd} km/h</span>`;
+              // Now, based on temperature, wind speed, and predicted rainfall, provide watering suggestion
+              provideWateringSuggestion(tempature, wndspd);
+            })
+            .catch(err => alert('Error fetching weather data.'));
+        }
+
+        function provideWateringSuggestion(temperature, windSpeed) {
+            var wateringAdvice = document.querySelector('#watering');
+    
+            // Determine the suggestion based on all three factors
+            var suggestion;
+            if (rainfall < 10 && temperature > 15 && windSpeed < 15) {
+                suggestion = "It's a good time to water the plants.";
+            } else if (rainfall >= 10 && rainfall < 30 && temperature > 15 && windSpeed < 30) {
+                suggestion = "Consider watering the plants.";
+            } else {
+                suggestion = "Hold off watering for now.";
+            }
+            
+            // Display the suggestion
+            wateringAdvice.innerHTML = suggestion;
+        }
+
+        // Call this function when the "Get Suggestion" button is clicked
+        document.getElementById("get-suggestion-button").addEventListener("click", function() {
+          event.preventDefault();
+          let year = new Date().getFullYear();
+          let month = new Date().getMonth() + 1;
+          let formData = new FormData();
+          formData.append("year", year);
+          formData.append("month", month);
+          fetch("/predict", {
+            method: "POST",
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            rainfall = data.prediction;
+            console.log(rainfall);
+            getLocationAndWeather();
+          })
+          .catch(error => console.error("Error:", error));
+        });
+    </script>
+</body>
+</html>
